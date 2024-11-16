@@ -1,3 +1,14 @@
+import styled from "styled-components";
+
+const FirstP = styled.p`
+background-color: red;
+`;
+const SecondP = styled.p`
+background-color: green;
+`;
+const ThirdP = styled.p`
+background-color: yellow;
+`;
 /**
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -10,19 +21,19 @@ export default function Post() {
   return (
     <>
       <h1>Hello world</h1>
-      <p>
+      <FirstP>
         This demo is <b>artificially slowed down</b>. Open{' '}
         <code>server/delays.js</code> to adjust how much different things are
         slowed down.
-      </p>
-      <p>
+      </FirstP>
+      <SecondP>
         Notice how HTML for comments "streams in" before the JS (or React) has
         loaded on the page.
-      </p>
-      <p>
+      </SecondP>
+      <ThirdP>
         Also notice that the JS for comments and sidebar has been code-split,
         but HTML for it is still included in the server output.
-      </p>
+      </ThirdP>
     </>
   );
 }

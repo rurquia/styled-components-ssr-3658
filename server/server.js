@@ -12,7 +12,7 @@ const babelRegister = require('@babel/register');
 babelRegister({
   ignore: [/[\\\/](build|server\/server|node_modules)[\\\/]/],
   presets: [['react-app', {runtime: 'automatic'}]],
-  plugins: ['@babel/transform-modules-commonjs'],
+  plugins: ['@babel/transform-modules-commonjs', 'babel-plugin-styled-components'],
 });
 
 const express = require('express');

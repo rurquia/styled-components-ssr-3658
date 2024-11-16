@@ -8,7 +8,9 @@
 
 import * as React from "react";
 // import {renderToString} from 'react-dom/server';
+import { Transform } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
+import {ServerStyleSheet, StyleSheetManager} from "styled-components"
 import App from "../src/App";
 import { DataProvider } from "../src/data";
 import { API_DELAY, ABORT_DELAY } from "./delays";
@@ -37,17 +39,55 @@ module.exports = function render(url, res) {
   });
   let didError = false;
   const data = createServerData();
+  const sheet = new ServerStyleSheet();	
+
+  const readerWriter = new Transform({
+    objectMode: true,
+    transform(
+      chunk,
+      /* encoding */
+      _,
+      callback
+    ) {
+      // Get the chunk and retrieve the sheet's CSS as an HTML chunk,
+      // then reset its rules so we get only new ones for the next chunk
+      const renderedHtml = chunk.toString();
+      const styledCSS = sheet._emitSheetCSS();
+      const CLOSING_TAG_R = /<\/[a-z]*>/i;
+
+      sheet.instance.clearTag(); 
+
+      // prepend style html to chunk, unless the start of the chunk is a 
+      // closing tag in which case append right after that
+      if (/<\/head>/.test(renderedHtml)) { 
+        const replacedHtml = renderedHtml.replace('</head>', `${styledCSS}</head>`); 
+        this.push(replacedHtml); 
+      } else if (CLOSING_TAG_R.test(renderedHtml)) { 
+        const execResult = CLOSING_TAG_R.exec(renderedHtml); 
+        const endOfClosingTag = execResult.index + execResult.flat().length - 1; 
+        const before = renderedHtml.slice(0, endOfClosingTag); 
+        const after = renderedHtml.slice(endOfClosingTag);
+        this.push(before + styledCSS + after); 
+      } else { 
+        this.push(styledCSS + renderedHtml); 
+      }
+      callback();
+    },
+  });
+  
   const stream = renderToPipeableStream(
-    <DataProvider data={data}>
-      <App assets={assets} />
-    </DataProvider>,
+    <StyleSheetManager sheet={sheet.instance}>
+      <DataProvider data={data}>
+        <App assets={assets} />
+      </DataProvider>
+    </StyleSheetManager>,
     {
       bootstrapScripts: [assets["main.js"]],
       onShellReady() {
         // If something errored before we started streaming, we set the error code appropriately.
         res.statusCode = didError ? 500 : 200;
         res.setHeader("Content-type", "text/html");
-        stream.pipe(res);
+        stream.pipe(readerWriter);
       },
       onError(x) {
         didError = true;
@@ -58,6 +98,8 @@ module.exports = function render(url, res) {
   // Abandon and switch to client rendering if enough time passes.
   // Try lowering this to see the client recover.
   setTimeout(() => stream.abort(), ABORT_DELAY);
+
+  readerWriter.pipe(res);
 };
 
 // Simulate a delay caused by data fetching.
